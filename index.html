@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>GaitScan - GEU Biomechanics Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--ac:#00E5C0;--ac2:#FF6B6B;--ac3:#FFD166;--bg:#070B14;--panel:#0A0F1C;--brd:rgba(0,229,192,0.18);--txt:#E8F0FF;--mut:#7A8AAA;--fh:'Syne',sans-serif;--fm:'JetBrains Mono',monospace}
+html,body{height:100%;overflow:hidden;background:#000;touch-action:manipulation}
+body{font-family:var(--fm);color:var(--txt);background:var(--bg)}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+/* TOPBAR */
+#topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));background:rgba(0,0,0,0.6);border-bottom:0.5px solid var(--brd);flex-shrink:0;z-index:20}
+.logo{font-family:var(--fh);font-size:17px;font-weight:700;color:var(--ac);display:flex;align-items:center;gap:7px}
+.logo b{color:var(--txt);font-weight:700}
+#spill{font-size:10px;padding:3px 9px;border-radius:20px;background:rgba(0,229,192,0.12);color:var(--ac);border:0.5px solid rgba(0,229,192,0.3);display:flex;align-items:center;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ac);animation:dp 1.4s infinite}
+@keyframes dp{0%,100%{opacity:1}50%{opacity:0.3}}
+#tbr{margin-left:auto;display:flex;gap:8px;align-items:center}
+.icon-btn{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,0.06);border:0.5px solid var(--brd);color:var(--mut);display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-appearance:none;transition:all 0.2s}
+.icon-btn:active{background:rgba(0,229,192,0.15);color:var(--ac)}
+.icon-btn.on{background:rgba(255,107,107,0.15);color:var(--ac2);border-color:rgba(255,107,107,0.3);animation:rp 1s infinite}
+@keyframes rp{0%,100%{opacity:1}50%{opacity:0.6}}
+
+/* CAM AREA */
+#cw{position:relative;flex:1;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#vid{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+#oc{position:absolute;top:0;left:0;width:100%;height:100%}
+.cn{position:absolute;width:18px;height:18px;border-color:rgba(0,229,192,0.5);border-style:solid}
+.tl{top:10px;left:10px;border-width:2px 0 0 2px}.tr{top:10px;right:10px;border-width:2px 2px 0 0}
+.bl{bottom:10px;left:10px;border-width:0 0 2px 2px}.br{bottom:10px;right:10px;border-width:0 2px 2px 0}
+#ftag{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.65);color:var(--ac);font-size:10px;padding:3px 8px;border-radius:4px;border:0.5px solid var(--brd);display:none}
+#rectag{position:absolute;top:12px;left:12px;background:rgba(255,107,107,0.2);color:var(--ac2);font-size:10px;padding:3px 8px;border-radius:4px;border:0.5px solid rgba(255,107,107,0.4);display:none;align-items:center;gap:5px}
+.rdot{width:6px;height:6px;border-radius:50%;background:var(--ac2);animation:dp 0.8s infinite}
+#plbl{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--mut);white-space:nowrap;font-family:var(--fh);letter-spacing:0.1em;text-transform:uppercase;display:none}
+#pdots{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);display:none;flex-direction:row;gap:5px}
+.pd{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.15);transition:all 0.3s}
+.pd.on{background:var(--ac)}
+#swbtn{position:absolute;bottom:12px;right:12px;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,0.65);border:0.5px solid var(--brd);color:var(--ac);display:none;align-items:center;justify-content:center;cursor:pointer;-webkit-appearance:none;font-size:0}
+
+/* SETUP OVERLAY */
+#setup{position:absolute;inset:0;z-index:10;background:rgba(7,11,20,0.97);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 18px;overflow-y:auto;gap:12px}
+.ring{width:56px;height:56px;border-radius:50%;border:1.5px solid rgba(0,229,192,0.4);display:flex;align-items:center;justify-content:center;color:var(--ac);flex-shrink:0}
+#setup h3{font-family:var(--fh);font-size:15px;font-weight:600;text-align:center}
+#setup p{font-size:11px;color:var(--mut);text-align:center;line-height:1.7;max-width:280px}
+
+/* PATIENT FORM */
+#patform{width:100%;max-width:360px;background:rgba(0,229,192,0.04);border:0.5px solid var(--brd);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+#patform .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.flabel{font-size:9px;color:var(--mut);margin-bottom:3px;font-family:var(--fh);text-transform:uppercase;letter-spacing:0.08em}
+.finput{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:7px;padding:8px 10px;font-family:var(--fm);font-size:12px;color:var(--txt);width:100%;-webkit-appearance:none;outline:none}
+.finput:focus{border-color:rgba(0,229,192,0.4);background:rgba(0,229,192,0.06)}
+select.finput option{background:#0D1220;color:var(--txt)}
+
+.abtn{padding:11px 26px;border-radius:9px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;-webkit-appearance:none;min-height:44px}
+#scanbtn{background:rgba(0,229,192,0.15);color:var(--ac);border:1px solid rgba(0,229,192,0.35)}
+#startbtn{background:rgba(0,229,192,0.2);color:var(--ac);border:1.5px solid rgba(0,229,192,0.5);width:100%;max-width:360px;justify-content:center;display:none;min-height:50px;font-size:14px}
+#startbtn:disabled{opacity:0.4;pointer-events:none}
+#camlist{display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px}
+.ccard{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;border:0.5px solid rgba(0,229,192,0.15);background:rgba(0,229,192,0.05);cursor:pointer;min-height:56px}
+.ccard.sel{background:rgba(0,229,192,0.14);border:1.5px solid rgba(0,229,192,0.5)}
+.cico{width:36px;height:36px;border-radius:9px;background:rgba(0,229,192,0.12);display:flex;align-items:center;justify-content:center;color:var(--ac);flex-shrink:0}
+.cnm{font-size:12px;font-weight:500;color:var(--txt)}.csb{font-size:10px;color:var(--mut);margin-top:2px}
+.cchk{margin-left:auto;color:var(--ac);opacity:0;transition:opacity 0.2s;flex-shrink:0}
+.ccard.sel .cchk{opacity:1}
+#errbox{font-size:11px;color:var(--ac2);text-align:center;background:rgba(255,107,107,0.1);border:0.5px solid rgba(255,107,107,0.3);border-radius:8px;padding:10px 14px;max-width:340px;line-height:1.7;display:none}
+#ptip{font-size:10px;color:var(--mut);text-align:center;line-height:1.7;background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 14px;max-width:340px;display:none;border:0.5px solid rgba(255,255,255,0.07)}
+
+/* DRAWER */
+#drawer{background:var(--panel);border-top:0.5px solid var(--brd);flex-shrink:0}
+#dtabs{display:flex;border-bottom:0.5px solid var(--brd)}
+.dtab{flex:1;padding:9px 4px;font-size:10px;font-family:var(--fh);font-weight:600;color:var(--mut);letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;text-align:center;border:none;background:none;-webkit-appearance:none;min-height:36px}
+.dtab.on{color:var(--ac);border-bottom:1.5px solid var(--ac)}
+#tparams{display:grid;grid-template-columns:repeat(3,1fr)}
+#tjoints,#tcompare{display:none}
+#tjoints{grid-template-columns:repeat(4,1fr)}
+#tcompare{flex-direction:column;padding:10px 12px;gap:8px}
+.pc{padding:8px 10px;border-right:0.5px solid rgba(0,229,192,0.08);border-bottom:0.5px solid rgba(0,229,192,0.06)}
+.pc:nth-child(3n){border-right:none}
+.pl{font-size:9px;color:var(--mut);margin-bottom:2px}.pv{font-size:16px;font-weight:700;color:var(--ac);line-height:1.1}
+.pv.w{color:var(--ac3)}.pv.al{color:var(--ac2)}.pu{font-size:9px;color:var(--mut);font-weight:400}
+.mb{height:2px;background:rgba(255,255,255,0.07);border-radius:2px;margin-top:4px;overflow:hidden}
+.mbf{height:100%;border-radius:2px;background:var(--ac);transition:width 0.5s}
+.jc{padding:7px 8px;border-right:0.5px solid rgba(0,229,192,0.08);border-bottom:0.5px solid rgba(0,229,192,0.06);position:relative}
+.jc:nth-child(4n){border-right:none}
+.jn{font-size:9px;color:var(--mut)}.jv{font-size:14px;font-weight:700;color:var(--txt)}
+.jc.hi .jv{color:var(--ac)}.jc.warn .jv{color:var(--ac3)}.jc.alert .jv{color:var(--ac2)}
+.jref{font-size:8px;color:var(--mut);margin-top:1px}
+#crow{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:0.5px solid var(--brd)}
+#clbl{font-size:9px;color:var(--mut);white-space:nowrap}
+#cbar{flex:1;height:2px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden}
+#cfill{height:100%;border-radius:2px;background:var(--ac);transition:width 0.4s;width:0}
+#cval{font-size:9px;color:var(--ac);min-width:28px;text-align:right}
+
+/* COMPARE TAB */
+.cmp-head{font-family:var(--fh);font-size:10px;font-weight:600;color:var(--mut);letter-spacing:0.1em;text-transform:uppercase}
+.cmp-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.05)}
+.cmp-lbl{font-size:10px;color:var(--mut);min-width:80px}
+.cmp-bar-wrap{flex:1;display:flex;flex-direction:column;gap:3px}
+.cmp-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.07);overflow:hidden}
+.cmp-fill-a{height:100%;background:var(--ac);border-radius:2px;transition:width 0.5s}
+.cmp-fill-b{height:100%;background:var(--ac3);border-radius:2px;transition:width 0.5s}
+.cmp-vals{font-size:9px;display:flex;gap:6px}
+.cmp-val-a{color:var(--ac)}.cmp-val-b{color:var(--ac3)}
+.cmp-legend{display:flex;gap:12px;font-size:9px}
+.cmp-leg{display:flex;align-items:center;gap:4px}
+.cleg-dot{width:8px;height:8px;border-radius:50%}
+.no-session{font-size:11px;color:var(--mut);text-align:center;padding:12px 0}
+
+/* MODAL */
+#modal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);display:none;align-items:flex-end;justify-content:center}
+#modal.show{display:flex}
+#modal-inner{background:#0D1220;border-radius:16px 16px 0 0;border:0.5px solid var(--brd);width:100%;max-width:500px;max-height:85vh;overflow-y:auto;padding:20px}
+#modal-inner h4{font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:14px;color:var(--ac)}
+.modal-close{float:right;background:none;border:none;color:var(--mut);font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+
+@keyframes spin{to{transform:rotate(360deg)}}.spin{display:inline-block;animation:spin 0.7s linear infinite}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.5L9.5 12.5L13.5 16.5L22 6.92L20.59 5.51L13.5 13.5L9.5 9.5L2 17Z"/></svg>GAIT<b>SCAN</b></div>
+  <div id="spill"><div class="dot"></div><span id="st">ready</span></div>
+  <div id="tbr">
+    <button class="icon-btn" id="recbtn" title="Record session">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+    </button>
+    <button class="icon-btn" id="reportbtn" title="Export report">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM12 11H7V13H12V11ZM17 15H7V17H17V15ZM17 11H14V13H17V11Z"/></svg>
+    </button>
+    <button class="icon-btn" id="profilebtn" title="Patient profile">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12C14.21 12 16 10.21 16 8S14.21 4 12 4 8 5.79 8 8 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- CAM -->
+<div id="cw">
+  <video id="vid" autoplay muted playsinline webkit-playsinline x5-playsinline></video>
+  <canvas id="oc"></canvas>
+  <div class="cn tl"></div><div class="cn tr"></div><div class="cn bl"></div><div class="cn br"></div>
+  <div id="ftag">0 FPS</div>
+  <div id="rectag"><div class="rdot"></div><span>REC</span></div>
+  <div id="plbl">stance phase</div>
+  <div id="pdots"><div class="pd on"></div><div class="pd"></div><div class="pd"></div><div class="pd"></div><div class="pd"></div><div class="pd"></div><div class="pd"></div></div>
+  <button id="swbtn" aria-label="Switch camera">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 7L16 3L12 7H15C15 10.31 12.31 13 9 13C7.99 13 7.03 12.75 6.2 12.31L4.74 13.77C5.97 14.56 7.43 15 9 15C13.42 15 17 11.42 17 7H20ZM3 17L7 21L11 17H8C8 13.69 10.69 11 14 11C15.01 11 15.97 11.25 16.8 11.69L18.26 10.23C17.03 9.44 15.57 9 14 9C9.58 9 6 12.58 6 17H3Z"/></svg>
+  </button>
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div class="ring"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.2A3.2 3.2 0 0 1 8.8 12 3.2 3.2 0 0 1 12 8.8 3.2 3.2 0 0 1 15.2 12 3.2 3.2 0 0 1 12 15.2M12 7A5 5 0 0 0 7 12 5 5 0 0 0 12 17 5 5 0 0 0 17 12 5 5 0 0 0 12 7M0 12C0 5.37 5.37 0 12 0S24 5.37 24 12 18.63 24 12 24 0 18.63 0 12Z"/></svg></div>
+    <h3>Patient Setup</h3>
+    <div id="patform">
+      <div class="frow">
+        <div><div class="flabel">Patient Name</div><input class="finput" id="inp-name" type="text" placeholder="e.g. Ravi Kumar"></div>
+        <div><div class="flabel">Age</div><input class="finput" id="inp-age" type="number" placeholder="30" min="1" max="120"></div>
+      </div>
+      <div class="frow">
+        <div><div class="flabel">Height (cm)</div><input class="finput" id="inp-height" type="number" placeholder="170" min="50" max="250"></div>
+        <div><div class="flabel">Condition</div>
+          <select class="finput" id="inp-cond">
+            <option value="Normal">Normal</option>
+            <option value="Post-stroke">Post-stroke</option>
+            <option value="Knee OA">Knee OA</option>
+            <option value="Hip replacement">Hip replacement</option>
+            <option value="Parkinson's">Parkinson's</option>
+            <option value="Cerebral palsy">Cerebral palsy</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <button class="abtn" id="scanbtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5L12 9V6C15.31 6 18 8.69 18 12C18 13.01 17.75 13.97 17.3 14.8L18.76 16.26C19.55 15.03 20 13.57 20 12C20 7.58 16.42 4 12 4ZM12 18C8.69 18 6 15.31 6 12C6 10.99 6.25 10.03 6.7 9.2L5.24 7.74C4.45 8.97 4 10.43 4 12C4 16.42 7.58 20 12 20V23L16 19L12 15V18Z"/></svg><span id="slbl">Scan Cameras</span></button>
+    <div id="camlist"></div>
+    <div id="errbox"></div>
+    <div id="ptip"></div>
+    <button class="abtn" id="startbtn" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5V19L19 12Z"/></svg>Start Analysis</button>
+  </div>
+</div>
+
+<!-- DRAWER -->
+<div id="drawer">
+  <div id="dtabs">
+    <button class="dtab on" onclick="showTab(0)">Params</button>
+    <button class="dtab" onclick="showTab(1)">Joints</button>
+    <button class="dtab" onclick="showTab(2)">Compare</button>
+  </div>
+  <div id="tparams">
+    <div class="pc"><div class="pl">Cadence</div><div class="pv" id="pc">--<span class="pu"> s/m</span></div><div class="mb"><div class="mbf" id="bc" style="width:0"></div></div></div>
+    <div class="pc"><div class="pl">Stride len.</div><div class="pv" id="ps">--<span class="pu"> cm</span></div><div class="mb"><div class="mbf" id="bs" style="width:0;background:#FFD166"></div></div></div>
+    <div class="pc"><div class="pl">Step width</div><div class="pv" id="pw">--<span class="pu"> cm</span></div><div class="mb"><div class="mbf" id="bw" style="width:0;background:#FF6B6B"></div></div></div>
+    <div class="pc"><div class="pl">Velocity</div><div class="pv" id="pv">--<span class="pu"> m/s</span></div><div class="mb"><div class="mbf" id="bv" style="width:0"></div></div></div>
+    <div class="pc"><div class="pl">Symmetry</div><div class="pv" id="py">--<span class="pu"> %</span></div><div class="mb"><div class="mbf" id="by" style="width:0;background:#FFD166"></div></div></div>
+    <div class="pc"><div class="pl">Phase</div><div class="pv" id="pp" style="font-size:11px;padding-top:3px">--</div></div>
+  </div>
+  <div id="tjoints">
+    <div class="jc hi" id="jc-lh"><div class="jn">L-Hip</div><div class="jv" id="jlh">--</div><div class="jref">norm: 0-30&#176;</div></div>
+    <div class="jc hi" id="jc-rh"><div class="jn">R-Hip</div><div class="jv" id="jrh">--</div><div class="jref">norm: 0-30&#176;</div></div>
+    <div class="jc hi" id="jc-lk"><div class="jn">L-Knee</div><div class="jv" id="jlk">--</div><div class="jref">norm: 0-60&#176;</div></div>
+    <div class="jc hi" id="jc-rk"><div class="jn">R-Knee</div><div class="jv" id="jrk">--</div><div class="jref">norm: 0-60&#176;</div></div>
+    <div class="jc" id="jc-la"><div class="jn">L-Ankle</div><div class="jv" id="jla">--</div><div class="jref">norm: 90-110&#176;</div></div>
+    <div class="jc" id="jc-ra"><div class="jn">R-Ankle</div><div class="jv" id="jra">--</div><div class="jref">norm: 90-110&#176;</div></div>
+    <div class="jc" id="jc-ls"><div class="jn">L-Shldr</div><div class="jv" id="jls">--</div><div class="jref">norm: 20-40&#176;</div></div>
+    <div class="jc" id="jc-rs"><div class="jn">R-Shldr</div><div class="jv" id="jrs">--</div><div class="jref">norm: 20-40&#176;</div></div>
+  </div>
+  <div id="tcompare">
+    <div class="no-session" id="cmp-empty">Record at least one session to compare.</div>
+    <div id="cmp-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="cmp-head">Session Comparison</div>
+        <div class="cmp-legend"><div class="cmp-leg"><div class="cleg-dot" style="background:var(--ac)"></div><span style="color:var(--mut)">Session A</span></div><div class="cmp-leg"><div class="cleg-dot" style="background:var(--ac3)"></div><span style="color:var(--mut)">Session B</span></div></div>
+      </div>
+      <div id="cmp-rows"></div>
+    </div>
+  </div>
+  <div id="crow"><span id="clbl">Pose confidence</span><div id="cbar"><div id="cfill"></div></div><span id="cval">0%</span></div>
+</div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div id="modal">
+  <div id="modal-inner">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h4 id="modal-title">Patient Profile</h4>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+<script>
+'use strict';
+
+// ── State ──
+var allCams=[], selId=null, camIdx=0, facingMode='user';
+var activeStream=null, poseInst=null, rafId=null, poseReady=false, poseRunning=false;
+var fc=0, ft=Date.now(), fps=0;
+var stepTs=[], lastHY=null, stepPh=0, phIdx=0;
+var phNames=['initial contact','loading resp.','mid stance','terminal stance','pre-swing','mid swing','terminal swing'];
+
+// ── Recording ──
+var recording=false, recStart=null, recData=[];
+var sessionA=null, sessionB=null;
+
+// ── Current live values ──
+var live={cad:0,stride:0,width:0,vel:0,sym:0,lH:0,rH:0,lK:0,rK:0,lA:0,rA:0,lS:0,rS:0,phase:'--'};
+
+// ── Patient ──
+var patient={name:'',age:'',height:'',cond:'Normal'};
+
+var vid=document.getElementById('vid');
+var canvas=document.getElementById('oc');
+var ctx=canvas.getContext('2d');
+var stEl=document.getElementById('st');
+
+function resize(){ var cw=document.getElementById('cw'); canvas.width=cw.offsetWidth; canvas.height=cw.offsetHeight; }
+window.addEventListener('resize',resize); resize();
+
+function showTab(i){
+  ['tparams','tjoints','tcompare'].forEach(function(id,j){
+    var el=document.getElementById(id);
+    el.style.display=j===i?(id==='tcompare'?'flex':'grid'):'none';
+  });
+  document.querySelectorAll('.dtab').forEach(function(b,j){b.classList.toggle('on',j===i);});
+  if(i===2) renderCompare();
+}
+
+function wait(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
+function stopStream(s){ if(!s)return; try{s.getTracks().forEach(function(t){t.stop();});}catch(e){} }
+
+// ── JOINT REFERENCE RANGES (clinical gait norms) ──
+var NORMS={
+  lH:{min:0,max:45,warn:55},  rH:{min:0,max:45,warn:55},
+  lK:{min:0,max:70,warn:85},  rK:{min:0,max:70,warn:85},
+  lA:{min:80,max:120,warn:70}, rA:{min:80,max:120,warn:70},
+  lS:{min:10,max:50,warn:60},  rS:{min:10,max:50,warn:60}
+};
+function classifyJoint(key, val){
+  var n=NORMS[key]; if(!n||val===0)return '';
+  if(val<n.min||val>n.warn)return 'alert';
+  if(val>n.max)return 'warn';
+  return 'hi';
+}
+
+// ── SCAN ──
+document.getElementById('scanbtn').addEventListener('click', scanCams);
+async function scanCams(){
+  var errbox=document.getElementById('errbox'), ptip=document.getElementById('ptip'), camlist=document.getElementById('camlist');
+  errbox.style.display='none'; ptip.style.display='none'; camlist.innerHTML=''; selId=null;
+  document.getElementById('startbtn').style.display='none';
+  document.getElementById('scanbtn').disabled=true;
+  document.getElementById('slbl').innerHTML='<span class="spin">&#8635;</span> Scanning...';
+  var tmp=null;
+  try{ tmp=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false}); }
+  catch(e){
+    document.getElementById('scanbtn').disabled=false; document.getElementById('slbl').textContent='Scan Cameras';
+    errbox.textContent='Camera permission denied: '+e.name; errbox.style.display='block';
+    ptip.innerHTML='Android: tap lock icon &rarr; Permissions &rarr; Camera &rarr; Allow, then refresh. Page must be HTTPS.';
+    ptip.style.display='block'; return;
+  }
+  stopStream(tmp); tmp=null; await wait(800);
+  var devices; try{devices=await navigator.mediaDevices.enumerateDevices();}catch(e){return;}
+  allCams=devices.filter(function(d){return d.kind==='videoinput';});
+  document.getElementById('scanbtn').disabled=false; document.getElementById('slbl').textContent='Scan Cameras';
+  if(allCams.length===0){errbox.textContent='No cameras found.';errbox.style.display='block';return;}
+  allCams.forEach(function(d,i){
+    var lbl=d.label||('Camera '+(i+1)); var short=lbl.length>34?lbl.slice(0,32)+'...':lbl;
+    var l=lbl.toLowerCase();
+    var sub=l.indexOf('front')>=0||l.indexOf('user')>=0?'Front-facing':l.indexOf('back')>=0||l.indexOf('rear')>=0||l.indexOf('environment')>=0?'Rear camera':'Video input';
+    var card=document.createElement('div'); card.className='ccard'; card.dataset.id=d.deviceId;
+    card.innerHTML='<div class="cico"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2L7.17 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H16.83L15 2H9ZM12 17C9.24 17 7 14.76 7 12S9.24 7 12 7 17 9.24 17 12 14.76 17 12 17Z"/></svg></div>'
+      +'<div style="flex:1;min-width:0"><div class="cnm">'+short+'</div><div class="csb">'+sub+'</div></div>'
+      +'<svg class="cchk" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59Z"/></svg>';
+    card.addEventListener('click',function(){selectCam(d.deviceId,card);});
+    camlist.appendChild(card);
+  });
+  document.getElementById('startbtn').style.display='flex';
+  var autoIdx=-1;
+  for(var i=0;i<allCams.length;i++){var l2=(allCams[i].label||'').toLowerCase();if(l2.indexOf('front')>=0||l2.indexOf('user')>=0){autoIdx=i;break;}}
+  if(autoIdx<0)autoIdx=0;
+  selectCam(allCams[autoIdx].deviceId,camlist.querySelectorAll('.ccard')[autoIdx]);
+}
+
+function selectCam(id,el){
+  selId=id; camIdx=0;
+  for(var i=0;i<allCams.length;i++)if(allCams[i].deviceId===id){camIdx=i;break;}
+  var l=(allCams[camIdx].label||'').toLowerCase();
+  facingMode=l.indexOf('back')>=0||l.indexOf('rear')>=0||l.indexOf('environment')>=0?'environment':'user';
+  document.querySelectorAll('.ccard').forEach(function(c){c.classList.remove('sel');});
+  el.classList.add('sel'); document.getElementById('startbtn').disabled=false;
+}
+
+async function openCamera(deviceId,fMode){
+  var strategies=[
+    {video:{facingMode:{ideal:fMode},width:{ideal:640},height:{ideal:480}},audio:false},
+    {video:{deviceId:{ideal:deviceId},width:{ideal:640},height:{ideal:480}},audio:false},
+    {video:{facingMode:fMode},audio:false},
+    {video:true,audio:false}
+  ];
+  var lastErr=null;
+  for(var i=0;i<strategies.length;i++){
+    try{ var s=await navigator.mediaDevices.getUserMedia(strategies[i]); return s; }
+    catch(e){ lastErr=e; await wait(400); }
+  }
+  throw lastErr;
+}
+
+function initPose(){
+  return new Promise(function(resolve){
+    poseInst=new Pose({locateFile:function(f){return 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/'+f;}});
+    poseInst.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+    poseInst.onResults(onResults);
+    var tmp=document.createElement('canvas'); tmp.width=64; tmp.height=64;
+    poseInst.send({image:tmp}).then(function(){poseReady=true;resolve();}).catch(function(){poseReady=true;resolve();});
+  });
+}
+
+function startLoop(){
+  if(rafId)cancelAnimationFrame(rafId);
+  poseRunning=true; var lastSend=0;
+  function loop(ts){
+    if(!poseRunning)return; rafId=requestAnimationFrame(loop);
+    if(ts-lastSend<100)return;
+    if(vid.readyState<2||!poseReady)return;
+    lastSend=ts; poseReady=false;
+    poseInst.send({image:vid}).then(function(){poseReady=true;}).catch(function(){poseReady=true;});
+  }
+  rafId=requestAnimationFrame(loop);
+}
+function stopLoop(){ poseRunning=false; if(rafId){cancelAnimationFrame(rafId);rafId=null;} }
+
+document.getElementById('startbtn').addEventListener('click',async function(){
+  if(!selId)return;
+  // save patient info
+  patient.name=document.getElementById('inp-name').value||'Anonymous';
+  patient.age=document.getElementById('inp-age').value||'--';
+  patient.height=document.getElementById('inp-height').value||'--';
+  patient.cond=document.getElementById('inp-cond').value;
+  document.getElementById('errbox').style.display='none';
+  stEl.textContent='opening camera...';
+  stopLoop(); stopStream(activeStream); activeStream=null;
+  await wait(600);
+  try{
+    activeStream=await openCamera(selId,facingMode);
+    vid.srcObject=activeStream; vid.style.display='block';
+    await new Promise(function(resolve,reject){
+      var t=setTimeout(function(){reject(new Error('Video timeout'));},8000);
+      function ondata(){clearTimeout(t);vid.removeEventListener('loadeddata',ondata);resolve();}
+      vid.addEventListener('loadeddata',ondata); vid.play().catch(function(){});
+    });
+    document.getElementById('setup').style.display='none';
+    document.getElementById('ftag').style.display='block';
+    document.getElementById('plbl').style.display='block';
+    document.getElementById('pdots').style.display='flex';
+    document.getElementById('swbtn').style.display='flex';
+    resize();
+    if(!poseInst)await initPose(); else poseReady=true;
+    stEl.textContent='tracking';
+    startLoop();
+  }catch(e){
+    document.getElementById('setup').style.display='flex'; vid.style.display='none';
+    document.getElementById('errbox').textContent='Error: '+e.name+' - '+e.message;
+    document.getElementById('errbox').style.display='block'; stEl.textContent='error';
+  }
+});
+
+document.getElementById('swbtn').addEventListener('click',async function(){
+  if(allCams.length<2)return;
+  camIdx=(camIdx+1)%allCams.length; selId=allCams[camIdx].deviceId;
+  var l=(allCams[camIdx].label||'').toLowerCase();
+  facingMode=l.indexOf('back')>=0||l.indexOf('rear')>=0||l.indexOf('environment')>=0?'environment':'user';
+  stEl.textContent='switching...'; stopLoop(); stopStream(activeStream); activeStream=null; await wait(600);
+  try{
+    activeStream=await openCamera(selId,facingMode); vid.srcObject=activeStream;
+    await new Promise(function(r){var t=setTimeout(r,5000);vid.addEventListener('loadeddata',function(){clearTimeout(t);r();});vid.play().catch(function(){});});
+    poseReady=true; startLoop(); stEl.textContent='tracking';
+  }catch(e){stEl.textContent='cam error';}
+});
+
+// ── RECORDING ──
+document.getElementById('recbtn').addEventListener('click',function(){
+  if(!poseRunning){alert('Start analysis first.');return;}
+  recording=!recording;
+  this.classList.toggle('on',recording);
+  document.getElementById('rectag').style.display=recording?'flex':'none';
+  if(recording){
+    recData=[]; recStart=Date.now();
+    stEl.textContent='recording...';
+  } else {
+    // Save session
+    var sess=buildSession();
+    if(!sessionA){sessionA=sess;showToast('Session A saved');}
+    else{sessionB=sess;showToast('Session B saved');}
+    stEl.textContent='tracking';
+  }
+});
+
+function buildSession(){
+  var dur=recData.length>0?((recData[recData.length-1].t-recData[0].t)/1000).toFixed(1):0;
+  var avg=function(key){if(!recData.length)return 0;var s=0;recData.forEach(function(r){s+=r[key]||0;});return Math.round(s/recData.length);};
+  return {
+    name:patient.name, age:patient.age, height:patient.height, cond:patient.cond,
+    date:new Date().toLocaleString(), duration:dur,
+    cad:avg('cad'), stride:avg('stride'), width:avg('width'), vel:(avg('vel')/100).toFixed(2),
+    sym:avg('sym'), lH:avg('lH'), rH:avg('rH'), lK:avg('lK'), rK:avg('rK'),
+    lA:avg('lA'), rA:avg('rA'), lS:avg('lS'), rS:avg('rS'),
+    rows: recData.slice()
+  };
+}
+
+// ── REPORT ──
+document.getElementById('reportbtn').addEventListener('click',function(){
+  if(!sessionA&&!poseRunning){showModal('No Data','<p style="color:var(--mut);font-size:12px">Start analysis and record a session first.</p>');return;}
+  var sess=sessionA||buildSession();
+  showReportModal(sess);
+});
+
+function showReportModal(s){
+  var abnormal=[];
+  var checks=[
+    {k:'lH',v:s.lH,n:'L-Hip',r:'0-45'},
+    {k:'rH',v:s.rH,n:'R-Hip',r:'0-45'},
+    {k:'lK',v:s.lK,n:'L-Knee',r:'0-70'},
+    {k:'rK',v:s.rK,n:'R-Knee',r:'0-70'},
+    {k:'lA',v:s.lA,n:'L-Ankle',r:'80-120'},
+    {k:'rA',v:s.rA,n:'R-Ankle',r:'80-120'}
+  ];
+  checks.forEach(function(c){if(classifyJoint(c.k,c.v)==='alert'||classifyJoint(c.k,c.v)==='warn')abnormal.push(c.n+' ('+c.v+'&#176; vs norm '+c.r+'&#176;)');});
+
+  var html='<div style="font-size:11px;color:var(--mut);margin-bottom:12px">'+s.date+'</div>'
+    +'<div style="background:rgba(0,229,192,0.06);border:0.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-family:var(--fh);font-size:11px;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em">Patient</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">'
+    +'<div><span style="color:var(--mut)">Name: </span><b>'+s.name+'</b></div>'
+    +'<div><span style="color:var(--mut)">Age: </span><b>'+s.age+'</b></div>'
+    +'<div><span style="color:var(--mut)">Height: </span><b>'+s.height+' cm</b></div>'
+    +'<div><span style="color:var(--mut)">Condition: </span><b>'+s.cond+'</b></div>'
+    +'</div></div>'
+    +'<div style="background:rgba(0,229,192,0.06);border:0.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-family:var(--fh);font-size:11px;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em">Gait Parameters</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">'
+    +'<div><span style="color:var(--mut)">Cadence: </span><b style="color:var(--ac)">'+s.cad+' steps/min</b></div>'
+    +'<div><span style="color:var(--mut)">Velocity: </span><b style="color:var(--ac)">'+s.vel+' m/s</b></div>'
+    +'<div><span style="color:var(--mut)">Stride: </span><b style="color:var(--ac)">'+s.stride+' cm</b></div>'
+    +'<div><span style="color:var(--mut)">Step width: </span><b style="color:var(--ac)">'+s.width+' cm</b></div>'
+    +'<div><span style="color:var(--mut)">Symmetry: </span><b style="color:'+(s.sym<85?'var(--ac3)':'var(--ac)')+'">'+s.sym+'%</b></div>'
+    +'<div><span style="color:var(--mut)">Duration: </span><b>'+s.duration+' s</b></div>'
+    +'</div></div>'
+    +'<div style="background:rgba(0,229,192,0.06);border:0.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-family:var(--fh);font-size:11px;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em">Joint Angles (avg)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:11px;text-align:center">'
+    +['lH','rH','lK','rK','lA','rA','lS','rS'].map(function(k){
+      var names={lH:'L-Hip',rH:'R-Hip',lK:'L-Knee',rK:'R-Knee',lA:'L-Ankle',rA:'R-Ankle',lS:'L-Shldr',rS:'R-Shldr'};
+      var cl=classifyJoint(k,s[k]); var col=cl==='alert'?'var(--ac2)':cl==='warn'?'var(--ac3)':'var(--ac)';
+      return '<div><div style="color:var(--mut)">'+names[k]+'</div><div style="color:'+col+';font-weight:700">'+s[k]+'&#176;</div></div>';
+    }).join('')
+    +'</div></div>';
+
+  if(abnormal.length>0){
+    html+='<div style="background:rgba(255,107,107,0.08);border:0.5px solid rgba(255,107,107,0.3);border-radius:10px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-family:var(--fh);font-size:11px;color:var(--ac2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em">&#9888; Flagged Joints</div>'
+    +'<div style="font-size:11px;color:var(--txt);line-height:1.8">'+abnormal.join('<br>')+'</div></div>';
+  }
+
+  html+='<div style="display:flex;gap:8px;margin-top:4px">'
+    +'<button onclick="downloadCSV()" style="flex:1;padding:10px;border-radius:8px;background:rgba(0,229,192,0.15);color:var(--ac);border:1px solid rgba(0,229,192,0.3);font-family:var(--fh);font-size:12px;cursor:pointer">Download CSV</button>'
+    +'<button onclick="closeModal()" style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--mut);border:0.5px solid rgba(255,255,255,0.1);font-family:var(--fh);font-size:12px;cursor:pointer">Close</button>'
+    +'</div>';
+
+  showModal('Session Report',html);
+}
+
+// ── CSV DOWNLOAD ──
+function downloadCSV(){
+  var sess=sessionA||buildSession();
+  if(!sess.rows||!sess.rows.length){alert('No recorded data. Use the record button during analysis.');return;}
+  var hdr='time_s,cad,stride_cm,width_cm,vel_ms,sym_pct,lHip,rHip,lKnee,rKnee,lAnkle,rAnkle,lShoulder,rShoulder\n';
+  var rows=sess.rows.map(function(r){
+    return [(r.t-sess.rows[0].t)/1000,r.cad,r.stride,r.width,(r.vel/100).toFixed(2),r.sym,r.lH,r.rH,r.lK,r.rK,r.lA,r.rA,r.lS,r.rS].join(',');
+  }).join('\n');
+  var blob=new Blob([hdr+rows],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='gaitscan_'+sess.name.replace(/\s/g,'_')+'_'+Date.now()+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ── COMPARE ──
+function renderCompare(){
+  var empty=document.getElementById('cmp-empty');
+  var content=document.getElementById('cmp-content');
+  if(!sessionA){empty.style.display='block';content.style.display='none';return;}
+  empty.style.display='none'; content.style.display='block';
+  var sB=sessionB||{cad:0,stride:0,width:0,sym:0,lK:0,rK:0,lH:0,rH:0};
+  var rows=[
+    {lbl:'Cadence',keyA:'cad',keyB:'cad',unit:'s/m',max:180},
+    {lbl:'Stride',keyA:'stride',keyB:'stride',unit:'cm',max:180},
+    {lbl:'Symmetry',keyA:'sym',keyB:'sym',unit:'%',max:100},
+    {lbl:'L-Knee',keyA:'lK',keyB:'lK',unit:'deg',max:90},
+    {lbl:'R-Knee',keyA:'rK',keyB:'rK',unit:'deg',max:90},
+    {lbl:'L-Hip',keyA:'lH',keyB:'lH',unit:'deg',max:60},
+    {lbl:'R-Hip',keyA:'rH',keyB:'rH',unit:'deg',max:60},
+  ];
+  var html=rows.map(function(r){
+    var a=sessionA[r.keyA]||0, b=sB[r.keyB]||0;
+    var pA=Math.min(100,a/r.max*100), pB=Math.min(100,b/r.max*100);
+    return '<div class="cmp-row">'
+      +'<div class="cmp-lbl">'+r.lbl+'</div>'
+      +'<div class="cmp-bar-wrap">'
+      +'<div class="cmp-bar"><div class="cmp-fill-a" style="width:'+pA+'%"></div></div>'
+      +(sessionB?'<div class="cmp-bar"><div class="cmp-fill-b" style="width:'+pB+'%"></div></div>':'')
+      +'</div>'
+      +'<div class="cmp-vals"><span class="cmp-val-a">'+a+' '+r.unit+'</span>'+(sessionB?'<span class="cmp-val-b">'+b+' '+r.unit+'</span>':'')+'</div>'
+      +'</div>';
+  }).join('');
+  if(!sessionB) html='<div style="font-size:10px;color:var(--mut);margin-bottom:8px">Session A loaded. Record Session B to compare.</div>'+html;
+  document.getElementById('cmp-rows').innerHTML=html;
+}
+
+// ── PATIENT PROFILE MODAL ──
+document.getElementById('profilebtn').addEventListener('click',function(){
+  var html='<div style="display:flex;flex-direction:column;gap:10px">'
+    +'<div><div class="flabel" style="font-size:9px;color:var(--mut);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em">Name</div><input class="finput" id="m-name" type="text" value="'+patient.name+'" style="background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:7px;padding:8px 10px;font-family:var(--fm);font-size:12px;color:var(--txt);width:100%;outline:none"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +'<div><div class="flabel" style="font-size:9px;color:var(--mut);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em">Age</div><input class="finput" id="m-age" type="number" value="'+patient.age+'" style="background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:7px;padding:8px 10px;font-family:var(--fm);font-size:12px;color:var(--txt);width:100%;outline:none"></div>'
+    +'<div><div class="flabel" style="font-size:9px;color:var(--mut);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em">Height (cm)</div><input class="finput" id="m-height" type="number" value="'+patient.height+'" style="background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:7px;padding:8px 10px;font-family:var(--fm);font-size:12px;color:var(--txt);width:100%;outline:none"></div>'
+    +'</div>'
+    +'<div style="margin-top:4px;display:flex;gap:8px">'
+    +'<button onclick="saveProfile()" style="flex:1;padding:10px;border-radius:8px;background:rgba(0,229,192,0.15);color:var(--ac);border:1px solid rgba(0,229,192,0.3);font-family:var(--fh);font-size:12px;cursor:pointer">Save</button>'
+    +'<button onclick="closeModal()" style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--mut);border:0.5px solid rgba(255,255,255,0.1);font-family:var(--fh);font-size:12px;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  showModal('Patient Profile',html);
+});
+function saveProfile(){
+  patient.name=document.getElementById('m-name').value||patient.name;
+  patient.age=document.getElementById('m-age').value||patient.age;
+  patient.height=document.getElementById('m-height').value||patient.height;
+  closeModal(); showToast('Profile updated');
+}
+
+// ── MODAL ──
+function showModal(title,body){ document.getElementById('modal-title').textContent=title; document.getElementById('modal-body').innerHTML=body; document.getElementById('modal').classList.add('show'); }
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── TOAST ──
+function showToast(msg){ var t=document.createElement('div'); t.textContent=msg; t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,229,192,0.2);color:var(--ac);border:0.5px solid rgba(0,229,192,0.4);padding:7px 16px;border-radius:20px;font-size:11px;z-index:200;font-family:var(--fh);pointer-events:none'; document.body.appendChild(t); setTimeout(function(){document.body.removeChild(t);},2000); }
+
+// ── DRAWING ──
+var CONNS=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,29],[29,31],[24,26],[26,28],[28,30],[30,32],[0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8]];
+var LSET={11:1,13:1,15:1,23:1,25:1,27:1,29:1,31:1},RSET={12:1,14:1,16:1,24:1,26:1,28:1,30:1,32:1};
+function drawJ(lm,col,r){var x=lm.x*canvas.width,y=lm.y*canvas.height;ctx.beginPath();ctx.arc(x,y,r+4,0,6.283);ctx.fillStyle=col+'22';ctx.fill();ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.arc(x,y,3,0,6.283);ctx.fillStyle=col;ctx.fill();}
+function drawB(a,b,col){ctx.beginPath();ctx.moveTo(a.x*canvas.width,a.y*canvas.height);ctx.lineTo(b.x*canvas.width,b.y*canvas.height);ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.lineCap='round';ctx.stroke();}
+function ang(a,b,c){var ax=a.x-b.x,ay=a.y-b.y,cx=c.x-b.x,cy=c.y-b.y,d=ax*cx+ay*cy,m=Math.sqrt((ax*ax+ay*ay)*(cx*cx+cy*cy));return m===0?0:Math.round(Math.acos(Math.min(1,Math.max(-1,d/m)))*180/Math.PI);}
+
+function setJoint(chipId,valId,key,val){
+  var deg='\u00b0';
+  document.getElementById(valId).textContent=val+deg;
+  var cl=classifyJoint(key,val);
+  var chip=document.getElementById(chipId);
+  chip.className='jc'+(cl?' '+cl:'');
+}
+
+function onResults(r){
+  fc++; var now=Date.now(); if(now-ft>=1000){fps=fc;fc=0;ft=now;document.getElementById('ftag').textContent=fps+' FPS';}
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!r.poseLandmarks||r.poseLandmarks.length<33){stEl.textContent='detecting...';return;}
+  var lm=r.poseLandmarks; stEl.textContent=recording?'recording...':'tracking';
+  var vis=0; for(var i=11;i<32;i++)vis+=(lm[i].visibility||0); vis=Math.round(vis/21*100);
+  document.getElementById('cfill').style.width=vis+'%'; document.getElementById('cval').textContent=vis+'%';
+  CONNS.forEach(function(p){var col=LSET[p[0]]||LSET[p[1]]?'rgba(0,229,192,0.55)':RSET[p[0]]||RSET[p[1]]?'rgba(255,107,107,0.55)':'rgba(255,209,102,0.4)';drawB(lm[p[0]],lm[p[1]],col);});
+  [{i:11,c:'#00E5C0',r:7},{i:12,c:'#FF6B6B',r:7},{i:13,c:'#00E5C0',r:5},{i:14,c:'#FF6B6B',r:5},{i:23,c:'#00E5C0',r:8},{i:24,c:'#FF6B6B',r:8},{i:25,c:'#00E5C0',r:8},{i:26,c:'#FF6B6B',r:8},{i:27,c:'#00E5C0',r:7},{i:28,c:'#FF6B6B',r:7},{i:29,c:'#00E5C0',r:5},{i:30,c:'#FF6B6B',r:5},{i:0,c:'#FFD166',r:10}].forEach(function(j){drawJ(lm[j.i],j.c,j.r);});
+
+  live.lH=ang(lm[11],lm[23],lm[25]); live.rH=ang(lm[12],lm[24],lm[26]);
+  live.lK=ang(lm[23],lm[25],lm[27]); live.rK=ang(lm[24],lm[26],lm[28]);
+  live.lA=ang(lm[25],lm[27],lm[31]); live.rA=ang(lm[26],lm[28],lm[32]);
+  live.lS=ang(lm[13],lm[11],lm[23]); live.rS=ang(lm[14],lm[12],lm[24]);
+
+  setJoint('jc-lh','jlh','lH',live.lH); setJoint('jc-rh','jrh','rH',live.rH);
+  setJoint('jc-lk','jlk','lK',live.lK); setJoint('jc-rk','jrk','rK',live.rK);
+  setJoint('jc-la','jla','lA',live.lA); setJoint('jc-ra','jra','rA',live.rA);
+  setJoint('jc-ls','jls','lS',live.lS); setJoint('jc-rs','jrs','rS',live.rS);
+
+  var hy=(lm[23].y+lm[24].y)/2;
+  if(lastHY!==null){var dh=hy-lastHY;if(dh>0.004&&stepPh===0){stepPh=1;stepTs.push(Date.now());if(stepTs.length>20)stepTs.shift();}else if(dh<-0.004&&stepPh===1)stepPh=0;}
+  lastHY=hy;
+
+  if(stepTs.length>=4){
+    var ints=[];for(var k=1;k<stepTs.length;k++)ints.push(stepTs[k]-stepTs[k-1]);
+    var avg=ints.reduce(function(a,b){return a+b},0)/ints.length;
+    live.cad=Math.round(60000/avg);
+    if(live.cad>20&&live.cad<220){
+      document.getElementById('pc').innerHTML=live.cad+'<span class="pu"> s/m</span>';
+      document.getElementById('bc').style.width=Math.min(100,live.cad/180*100)+'%';
+      live.vel=Math.round(live.cad*0.72);
+      var velDisp=(live.vel/100).toFixed(2);
+      document.getElementById('pv').innerHTML=velDisp+'<span class="pu"> m/s</span>';
+      document.getElementById('bv').style.width=Math.min(100,live.vel/200*100)+'%';
+      live.stride=Math.round(live.vel*10/(live.cad/60));
+      document.getElementById('ps').innerHTML=live.stride+'<span class="pu"> cm</span>';
+      document.getElementById('bs').style.width=Math.min(100,live.stride/180*100)+'%';
+    }
+  }
+
+  var hw=Math.abs(lm[23].x-lm[24].x);
+  if(hw>0.01){live.width=Math.round(Math.abs(lm[27].x-lm[28].x)/hw*18);document.getElementById('pw').innerHTML=live.width+'<span class="pu"> cm</span>';document.getElementById('bw').style.width=Math.min(100,live.width/40*100)+'%';}
+
+  var ls=Math.round((live.lH+live.lK+live.lA)/3),rs=Math.round((live.rH+live.rK+live.rA)/3);
+  if(ls>0&&rs>0){live.sym=100-Math.round(Math.abs(ls-rs)/((ls+rs)/2)*100);var el=document.getElementById('py');el.innerHTML=live.sym+'<span class="pu"> %</span>';el.className='pv'+(live.sym<85?' w':'');document.getElementById('by').style.width=live.sym+'%';}
+
+  var np=live.lK>150?0:live.lK>130?1:live.lK>110?2:live.lK>90?3:live.lK>70?4:5;
+  if(np!==phIdx){phIdx=np;document.querySelectorAll('.pd').forEach(function(d,i){d.classList.toggle('on',i===phIdx);});document.getElementById('plbl').textContent=phNames[phIdx]||'';document.getElementById('pp').textContent=phNames[phIdx]||'--';}
+
+  // Record frame
+  if(recording){
+    recData.push({t:Date.now(),cad:live.cad,stride:live.stride,width:live.width,vel:live.vel,sym:live.sym,lH:live.lH,rH:live.rH,lK:live.lK,rK:live.rK,lA:live.lA,rA:live.rA,lS:live.lS,rS:live.rS});
+  }
+}
+</script>
+</body>
+</html>
