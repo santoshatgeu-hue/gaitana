@@ -99,8 +99,8 @@ body{font-family:var(--fm);color:var(--txt);background:var(--bg)}
 /* ── SCREEN: ANALYSIS ── */
 #screen-analysis{padding:0;position:relative;overflow:hidden}
 #cam-wrap{position:relative;flex:1;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:200px}
-#vid{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
-#oc{position:absolute;top:0;left:0;width:100%;height:100%}
+#vid{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none;z-index:1}
+#oc{position:absolute;top:0;left:0;width:100%;height:100%;z-index:2}
 .cn{position:absolute;width:18px;height:18px;border-color:rgba(0,229,192,0.4);border-style:solid}
 .tl{top:10px;left:10px;border-width:2px 0 0 2px}.tr{top:10px;right:10px;border-width:2px 2px 0 0}
 .bl{bottom:10px;left:10px;border-width:0 0 2px 2px}.br{bottom:10px;right:10px;border-width:0 2px 2px 0}
@@ -669,8 +669,27 @@ document.getElementById('startbtn').addEventListener('click',async function(){
   stEl.textContent='opening...';stopLoop();stopStream(activeStream);activeStream=null;await wait(600);
   try{
     activeStream=await openCamera(selId,facingMode);
-    vid.srcObject=activeStream;vid.style.display='block';
+    vid.srcObject=activeStream;vid.style.display='block';document.getElementById('setup').style.display='none';
     await new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'));},8000);function od(){clearTimeout(t);vid.removeEventListener('loadeddata',od);res();}vid.addEventListener('loadeddata',od);vid.play().catch(function(){});});
+
+    // Verify frames are actually flowing — Android sometimes returns a "live"
+    // stream with a stuck/black track if the hardware was contended. If the
+    // video has zero dimensions after a short wait, force a full re-open once.
+    await wait(300);
+    if(vid.videoWidth===0||vid.videoHeight===0){
+      stEl.textContent='retrying camera...';
+      stopStream(activeStream);activeStream=null;
+      vid.srcObject=null;
+      await wait(700);
+      activeStream=await openCamera(selId,facingMode);
+      vid.srcObject=activeStream;
+      await new Promise(function(res2,rej2){var t2=setTimeout(function(){rej2(new Error('retry timeout'));},8000);function od2(){clearTimeout(t2);vid.removeEventListener('loadeddata',od2);res2();}vid.addEventListener('loadeddata',od2);vid.play().catch(function(){});});
+      await wait(300);
+      if(vid.videoWidth===0||vid.videoHeight===0){
+        throw new Error('Camera opened but no video frames received. Close other apps using the camera (WhatsApp, Camera, video calls) and try again.');
+      }
+    }
+
     document.getElementById('setup').style.display='none';
     document.getElementById('ftag').style.display='block';
     document.getElementById('plbl').style.display='block';
@@ -683,7 +702,12 @@ document.getElementById('startbtn').addEventListener('click',async function(){
     stEl.textContent='tracking';startLoop();
   }catch(e){
     document.getElementById('setup').style.display='flex';vid.style.display='none';
-    document.getElementById('errbox').textContent='Error: '+e.name+' - '+e.message;
+    stopStream(activeStream);activeStream=null;
+    var msg=e.message||e.name||'Unknown error';
+    if(e.name==='NotReadableError'||msg.indexOf('no video frames')>=0){
+      msg='Camera is in use or unresponsive. Close other apps using the camera (WhatsApp, Camera app, video calls), wait a few seconds, then tap Start Analysis again.';
+    }
+    document.getElementById('errbox').textContent=msg;
     document.getElementById('errbox').style.display='block';stEl.textContent='error';
   }
 });
